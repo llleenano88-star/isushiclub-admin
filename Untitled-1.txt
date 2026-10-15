@@ -1,4 +1,0 @@
-NEXT_PUBLIC_SUPABASE_URL=https://isxjgkvqgthbpowufewk.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon из сайта>
-SUPABASE_SERVICE_ROLE_KEY=<service_role из сайта>
-SITE_URL=https://isushiclub.ru
