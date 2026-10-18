@@ -3,17 +3,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { href: "/dashboard", icon: "📊", label: "Дашборд", ready: false },
+  { href: "/dashboard", icon: "📊", label: "Дашборд", ready: true },
   { href: "/orders", icon: "📦", label: "Заказы", ready: true },
   { href: "/products", icon: "🍣", label: "Товары", ready: true },
-  { href: "/categories", icon: "📂", label: "Категории", ready: false },
-  { href: "/promo", icon: "🎟", label: "Промокоды", ready: false },
-  { href: "/extras", icon: "➕", label: "Доп. товары", ready: false },
-  { href: "/delivery", icon: "🚚", label: "Доставка", ready: false },
-  { href: "/design", icon: "🎨", label: "Оформление сайта", ready: false },
-  { href: "/contacts", icon: "📞", label: "Контакты", ready: false },
-  { href: "/analytics", icon: "📈", label: "Аналитика", ready: false },
-  { href: "/settings", icon: "⚙️", label: "Настройки", ready: false },
+  { href: "/categories", icon: "📂", label: "Категории", ready: true },
+  { href: "/promo", icon: "🎟", label: "Промокоды", ready: true },
+  { href: "/extras", icon: "➕", label: "Доп. товары", ready: true },
+  { href: "/delivery", icon: "🚚", label: "Доставка", ready: true },
+  { href: "/design", icon: "🎨", label: "Оформление сайта", ready: true },
+  { href: "/contacts", icon: "📞", label: "Контакты", ready: true },
+  { href: "/analytics", icon: "📈", label: "Аналитика", ready: true },
+  { href: "/settings", icon: "⚙️", label: "Настройки", ready: true },
 ];
 
 export function Sidebar() {
