@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useToast } from "@/components/Toast";
+import { ImagePicker } from "@/components/ImagePicker";
+import { SPECS } from "@/lib/imageCrop";
 import { createExtra, updateExtra, toggleExtra, deleteExtra } from "@/actions/extras";
 
 type Extra = {
@@ -118,16 +120,16 @@ export function ExtrasTable({ initial }: { initial: Extra[] }) {
     setModal({ mode: "edit", item: x });
   }
 
-  function onPickFile(f: File | null) {
-    setFile(f);
-    setRemoveImage(false);
-    setPreview(f ? URL.createObjectURL(f) : modal?.item?.image_url ?? null);
-  }
-
-  function onRemoveImage() {
-    setFile(null);
-    setPreview(null);
-    setRemoveImage(true);
+  function onCropped(result: { file: File; preview: string } | null) {
+    if (result) {
+      setFile(result.file);
+      setPreview(result.preview);
+      setRemoveImage(false);
+    } else {
+      setFile(null);
+      setPreview(null);
+      setRemoveImage(true);
+    }
   }
 
   function submitForm() {
@@ -346,26 +348,14 @@ export function ExtrasTable({ initial }: { initial: Extra[] }) {
                 </label>
               </div>
               <div className="text-sm">
-                <span className="label">Фото</span>
-                <div className="flex items-center gap-3">
-                  <div className="h-16 w-16 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
-                    {preview && <img src={preview} alt="" className="h-full w-full object-cover" />}
-                  </div>
-                  <label className="btn btn-secondary cursor-pointer">
-                    {preview ? "Заменить фото" : "Загрузить фото"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-                    />
-                  </label>
-                  {preview && (
-                    <button type="button" onClick={onRemoveImage} className="btn btn-secondary">
-                      Убрать
-                    </button>
-                  )}
-                </div>
+                <span className="label">Фото (квадрат 1:1, итог 500×500)</span>
+                <ImagePicker
+                  preview={preview}
+                  spec={SPECS.product}
+                  onChange={onCropped}
+                  onError={(m) => setFormError(m)}
+                  title="Обрезка фото доп. товара"
+                />
               </div>
               <label className="block text-sm">
                 <span className="label">Порядок</span>

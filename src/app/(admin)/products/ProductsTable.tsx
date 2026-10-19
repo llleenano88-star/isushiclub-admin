@@ -3,6 +3,8 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
+import { ImagePicker } from "@/components/ImagePicker";
+import { SPECS } from "@/lib/imageCrop";
 import { deleteProducts, saveProduct, setProductsAvailable } from "@/actions/products";
 import { money, sortBy } from "@/lib/utils";
 
@@ -186,6 +188,7 @@ function ProductModal({
   const formRef = useRef<HTMLFormElement>(null);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState<string | null>(product?.image_url ?? null);
+  const [cropped, setCropped] = useState<File | null>(null); // обрезанное фото (WebP), если выбрано
   const [variants, setVariants] = useState<Variant[]>(() => {
     const v = Array.isArray(product?.variants) ? product!.variants : [];
     return v.length
@@ -201,6 +204,8 @@ function ProductModal({
     setSaving(true);
     const fd = new FormData(formRef.current!);
     fd.set("variants", JSON.stringify(variants));
+    // Если фото не выбрано — отправляем пустой файл, как раньше отправлял пустой input
+    fd.set("image", cropped ?? new File([], ""));
     const res = await saveProduct(fd);
     setSaving(false);
     if (res.ok) {
@@ -262,25 +267,20 @@ function ProductModal({
         </div>
 
         <div>
-          <label className="label">Фото</label>
-          <div className="flex items-center gap-4">
-            {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="" className="h-20 w-20 rounded object-cover" />
-            ) : (
-              <div className="h-20 w-20 rounded bg-slate-100" />
-            )}
-            <input
-              name="image"
-              type="file"
-              accept="image/*"
-              className="text-sm"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) setPreview(URL.createObjectURL(f));
-              }}
-            />
-          </div>
+          <label className="label">Фото (квадрат 1:1, итог 500×500)</label>
+          <ImagePicker
+            preview={preview}
+            spec={SPECS.product}
+            allowRemove={false}
+            title="Обрезка фото товара"
+            onError={(m) => toast(m, "error")}
+            onChange={(result) => {
+              if (result) {
+                setCropped(result.file);
+                setPreview(result.preview);
+              }
+            }}
+          />
         </div>
 
         <div className="flex gap-6">

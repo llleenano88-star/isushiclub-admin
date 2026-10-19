@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useToast } from "@/components/Toast";
+import { ImageCropModal } from "@/components/ImageCropModal";
+import { SPECS, ALLOWED_TYPES, validateSource, type CropSpec } from "@/lib/imageCrop";
 import {
   updateSiteSettings,
   uploadSiteImage,
@@ -36,6 +38,7 @@ export function DesignForm({
   const [deliveryTime, setDeliveryTime] = useState(initial.delivery_time);
 
   const [uploading, setUploading] = useState<string | null>(null);
+  const [cropReq, setCropReq] = useState<{ file: File; spec: CropSpec; title: string; done: (f: File) => void } | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
@@ -54,20 +57,33 @@ export function DesignForm({
 
   // ---------- баннеры ----------
 
-  async function addBanner(file: File | null) {
+  // Выбор файла -> проверка -> редактор обрезки -> загрузка обрезанного файла
+  function askCrop(file: File | null, spec: CropSpec, title: string, done: (f: File) => void) {
     if (!file) return;
-    setUploading("banner");
-    const url = await upload(file, "banners");
-    setUploading(null);
-    if (url) setBanners((prev) => [...prev, { image: url, link: "" }]);
+    const err = validateSource(file);
+    if (err) {
+      toast(err, "error");
+      return;
+    }
+    setCropReq({ file, spec, title, done });
   }
 
-  async function replaceBanner(index: number, file: File | null) {
-    if (!file) return;
-    setUploading(`banner-${index}`);
-    const url = await upload(file, "banners");
-    setUploading(null);
-    if (url) setBanners((prev) => prev.map((b, i) => (i === index ? { ...b, image: url } : b)));
+  function addBanner(file: File | null) {
+    askCrop(file, SPECS.banner, "Обрезка баннера (3:1)", async (cropped) => {
+      setUploading("banner");
+      const url = await upload(cropped, "banners");
+      setUploading(null);
+      if (url) setBanners((prev) => [...prev, { image: url, link: "" }]);
+    });
+  }
+
+  function replaceBanner(index: number, file: File | null) {
+    askCrop(file, SPECS.banner, "Обрезка баннера (3:1)", async (cropped) => {
+      setUploading(`banner-${index}`);
+      const url = await upload(cropped, "banners");
+      setUploading(null);
+      if (url) setBanners((prev) => prev.map((b, i) => (i === index ? { ...b, image: url } : b)));
+    });
   }
 
   function removeBanner(index: number) {
@@ -93,12 +109,13 @@ export function DesignForm({
 
   // ---------- обложки категорий ----------
 
-  async function setCover(slug: string, file: File | null) {
-    if (!file) return;
-    setUploading(`cat-${slug}`);
-    const url = await upload(file, "categories");
-    setUploading(null);
-    if (url) setCatImages((prev) => ({ ...prev, [slug]: url }));
+  function setCover(slug: string, file: File | null) {
+    askCrop(file, SPECS.cover, "Обрезка обложки категории (3:1)", async (cropped) => {
+      setUploading(`cat-${slug}`);
+      const url = await upload(cropped, "categories");
+      setUploading(null);
+      if (url) setCatImages((prev) => ({ ...prev, [slug]: url }));
+    });
   }
 
   function clearCover(slug: string) {
@@ -151,7 +168,7 @@ export function DesignForm({
             {uploading === "banner" ? "Загрузка…" : "+ Добавить баннер"}
             <input
               type="file"
-              accept="image/*"
+              accept={ALLOWED_TYPES.join(",")}
               className="hidden"
               onChange={(e) => {
                 addBanner(e.target.files?.[0] ?? null);
@@ -202,7 +219,7 @@ export function DesignForm({
                   {uploading === `banner-${i}` ? "…" : "Заменить"}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={ALLOWED_TYPES.join(",")}
                     className="hidden"
                     onChange={(e) => {
                       replaceBanner(i, e.target.files?.[0] ?? null);
@@ -244,7 +261,7 @@ export function DesignForm({
                     {uploading === `cat-${c.slug}` ? "Загрузка…" : url ? "Заменить" : "Загрузить"}
                     <input
                       type="file"
-                      accept="image/*"
+                      accept={ALLOWED_TYPES.join(",")}
                       className="hidden"
                       onChange={(e) => {
                         setCover(c.slug, e.target.files?.[0] ?? null);
@@ -399,6 +416,19 @@ export function DesignForm({
           {pending ? "Сохранение…" : "Сохранить"}
         </button>
       </div>
+      {cropReq && (
+        <ImageCropModal
+          file={cropReq.file}
+          spec={cropReq.spec}
+          title={cropReq.title}
+          onCancel={() => setCropReq(null)}
+          onDone={(cropped) => {
+            const done = cropReq.done;
+            setCropReq(null);
+            done(cropped);
+          }}
+        />
+      )}
     </div>
   );
 }
