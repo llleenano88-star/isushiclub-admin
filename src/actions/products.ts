@@ -5,6 +5,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 const BUCKET = "product-images";
 
+type SavedVariant = { label: string; price: number; sizeId?: string; iiko_id?: string };
+
 export async function saveProduct(formData: FormData) {
   await requireAdmin();
   const db = createServiceClient();
@@ -13,11 +15,23 @@ export async function saveProduct(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   if (!name) return { ok: false as const, error: "Укажите название" };
 
-  let variants: { label: string; price: number }[] = [];
+  let variants: SavedVariant[] = [];
   try {
     const raw = JSON.parse(String(formData.get("variants") || "[]"));
     variants = (Array.isArray(raw) ? raw : [])
-      .map((v: any) => ({ label: String(v.label ?? "").trim(), price: Number(v.price) || 0 }))
+      .map((v: any) => {
+        const out: SavedVariant = { label: String(v.label ?? "").trim(), price: Number(v.price) || 0 };
+        // iiko_id варианта — отдельный товар в iiko, тогда sizeId не нужен и не сохраняется.
+        // Иначе сохраняем sizeId (размер одного товара из iiko), если он есть.
+        const variantIikoId = String(v.iiko_id ?? "").trim();
+        if (variantIikoId) {
+          out.iiko_id = variantIikoId;
+        } else {
+          const sizeId = v.sizeId ? String(v.sizeId).trim() : "";
+          if (sizeId) out.sizeId = sizeId;
+        }
+        return out;
+      })
       .filter((v) => v.label || v.price);
   } catch {
     return { ok: false as const, error: "Некорректные варианты" };

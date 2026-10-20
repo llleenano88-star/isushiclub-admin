@@ -10,7 +10,7 @@ import { money, sortBy } from "@/lib/utils";
 
 type Product = Record<string, any>;
 type Category = { id: string | number; name: string };
-type Variant = { label: string; price: string };
+type Variant = { label: string; price: string; iiko_id: string; sizeId?: string | null };
 
 const minPrice = (p: Product) => {
   const prices = (Array.isArray(p.variants) ? p.variants : []).map((v: any) => Number(v.price)).filter((n: number) => n > 0);
@@ -192,8 +192,8 @@ function ProductModal({
   const [variants, setVariants] = useState<Variant[]>(() => {
     const v = Array.isArray(product?.variants) ? product!.variants : [];
     return v.length
-      ? v.map((x: any) => ({ label: String(x.label ?? x.name ?? ""), price: String(x.price ?? "") }))
-      : [{ label: "", price: "" }];
+      ? v.map((x: any) => ({ label: String(x.label ?? x.name ?? ""), price: String(x.price ?? ""), iiko_id: String(x.iiko_id ?? ""), sizeId: x.sizeId ?? null }))
+      : [{ label: "", price: "", iiko_id: "" }];
   });
 
   const setVar = (i: number, patch: Partial<Variant>) =>
@@ -203,7 +203,13 @@ function ProductModal({
     e.preventDefault();
     setSaving(true);
     const fd = new FormData(formRef.current!);
-    fd.set("variants", JSON.stringify(variants));
+    // iiko_id варианта сохраняем только если он заполнен; пустой — берётся iiko_id товара
+    fd.set(
+      "variants",
+      JSON.stringify(
+        variants.map(({ iiko_id, ...v }) => (iiko_id.trim() ? { ...v, iiko_id: iiko_id.trim() } : v))
+      )
+    );
     // Если фото не выбрано — отправляем пустой файл, как раньше отправлял пустой input
     fd.set("image", cropped ?? new File([], ""));
     const res = await saveProduct(fd);
@@ -243,12 +249,13 @@ function ProductModal({
         </div>
 
         <div>
-          <label className="label">Варианты (размер и цена)</label>
+          <label className="label">Варианты (размер, цена и iiko_id)</label>
           <div className="space-y-2">
             {variants.map((v, i) => (
               <div key={i} className="flex gap-2">
                 <input className="input" placeholder="Например: 8 шт." value={v.label} onChange={(e) => setVar(i, { label: e.target.value })} />
                 <input className="input !w-32" type="number" min="0" step="1" placeholder="Цена, ₽" value={v.price} onChange={(e) => setVar(i, { price: e.target.value })} />
+                <input className="input !w-64" placeholder="iiko_id варианта (необязательно)" value={v.iiko_id} onChange={(e) => setVar(i, { iiko_id: e.target.value })} />
                 <button
                   type="button"
                   className="btn-secondary"
@@ -261,7 +268,7 @@ function ProductModal({
               </div>
             ))}
           </div>
-          <button type="button" className="btn-secondary mt-2" onClick={() => setVariants((l) => [...l, { label: "", price: "" }])}>
+          <button type="button" className="btn-secondary mt-2" onClick={() => setVariants((l) => [...l, { label: "", price: "", iiko_id: "" }])}>
             + Добавить вариант
           </button>
         </div>
