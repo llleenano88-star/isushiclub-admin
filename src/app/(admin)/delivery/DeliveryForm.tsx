@@ -54,7 +54,8 @@ export function DeliveryForm({ initial }: { initial: Values }) {
       <div className="space-y-4">
         {field("delivery_price", "Стоимость доставки")}
         {field("free_delivery_from", "Бесплатная доставка от суммы")}
-        {field("min_order", "Минимальная сумма заказа")}
+        {field("min_order", "Минимальная сумма заказа на доставку")}
+        <p className="-mt-2 text-xs text-slate-500">Самовывоз принимается от любой суммы, минимум действует только для доставки.</p>
         <label className="block text-sm">
           <span className="label">Код доставки в iiko</span>
           <input

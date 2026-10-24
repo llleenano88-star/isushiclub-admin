@@ -338,6 +338,10 @@ function ProductModal({
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_new" defaultChecked={!!product?.is_new} /> Новинка
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="hidden" name="spicy_form" value="1" />
+            <input type="checkbox" name="is_spicy" defaultChecked={!!product?.is_spicy} /> Острый (перчик на карточке)
+          </label>
         </div>
 
         <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
