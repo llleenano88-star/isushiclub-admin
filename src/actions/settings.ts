@@ -16,7 +16,7 @@ export type DeliveryInput = {
 export async function updateDeliverySettings(input: DeliveryInput) {
   await requireAdmin();
 
-  const fields: [keyof DeliveryInput, string][] = [
+  const fields: ["delivery_price" | "free_delivery_from" | "min_order", string][] = [
     ["delivery_price", "Стоимость доставки"],
     ["free_delivery_from", "Бесплатная доставка от суммы"],
     ["min_order", "Минимальная сумма заказа"],
