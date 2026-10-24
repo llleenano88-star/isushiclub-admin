@@ -12,6 +12,8 @@ export default async function ContactsPage() {
     "telegram",
     "vk",
     "whatsapp",
+    "questions_title",
+    "questions_text",
   ]);
 
   return (
@@ -29,6 +31,8 @@ export default async function ContactsPage() {
             telegram: asString(map.telegram),
             vk: asString(map.vk),
             whatsapp: asString(map.whatsapp),
+            questions_title: asString(map.questions_title),
+            questions_text: asString(map.questions_text),
           }}
         />
       )}

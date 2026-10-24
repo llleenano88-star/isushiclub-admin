@@ -47,6 +47,23 @@ export async function saveProduct(formData: FormData) {
     variants,
   };
 
+  // Выбор у товара (соус, ролл). Меняем только если форма прислала это поле.
+  let optionsJson: { title: string; choices: string[] }[] | null = null;
+  if (formData.has("options")) {
+    try {
+      const raw = JSON.parse(String(formData.get("options") || "[]"));
+      optionsJson = (Array.isArray(raw) ? raw : [])
+        .map((g: any) => ({
+          title: String(g?.title ?? "").trim(),
+          choices: (Array.isArray(g?.choices) ? g.choices : []).map((c: unknown) => String(c ?? "").trim()).filter(Boolean),
+        }))
+        .filter((g) => g.choices.length > 0);
+    } catch {
+      return { ok: false as const, error: "Некорректный выбор у товара" };
+    }
+    record.options = optionsJson;
+  }
+
   const file = formData.get("image");
   if (file instanceof File && file.size > 0) {
     if (!file.type.startsWith("image/")) return { ok: false as const, error: "Файл должен быть изображением" };
@@ -57,9 +74,17 @@ export async function saveProduct(formData: FormData) {
     record.image_url = db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
   }
 
-  const { error } = id
-    ? await db.from("products").update(record).eq("id", id)
-    : await db.from("products").insert(record);
+  const write = (rec: Record<string, any>) =>
+    id ? db.from("products").update(rec).eq("id", id) : db.from("products").insert(rec);
+  let { error } = await write(record);
+  if (error && error.code === "42703" && "options" in record) {
+    // Колонки options ещё нет (не выполнена миграция 009): сохраняем остальное, чтобы ничего не потерялось
+    if (optionsJson && optionsJson.length) {
+      return { ok: false as const, error: "Сначала выполните миграцию 009_options_and_delivery.sql в Supabase" };
+    }
+    const { options: _omit, ...rest } = record;
+    ({ error } = await write(rest));
+  }
   if (error) return { ok: false as const, error: error.message };
 
   revalidatePath("/products");

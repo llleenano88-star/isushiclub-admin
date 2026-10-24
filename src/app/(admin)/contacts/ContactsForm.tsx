@@ -47,6 +47,25 @@ export function ContactsForm({ initial }: { initial: ContactsInput }) {
         {field("vk", "VK (ссылка)", "https://vk.com/...")}
         {field("whatsapp", "WhatsApp (ссылка)", "https://wa.me/...")}
       </div>
+
+      <div className="mt-6 space-y-4 border-t border-slate-200 pt-5">
+        <h2 className="text-base font-semibold text-slate-800">Блок «Остались вопросы?» на сайте</h2>
+        {field("questions_title", "Заголовок", "Остались вопросы?", "Пусто — «Остались вопросы?». Блок показывается вверху и внизу страницы.")}
+        <label className="block text-sm">
+          <span className="label">Текст</span>
+          <textarea
+            rows={3}
+            maxLength={500}
+            value={form.questions_text}
+            onChange={(e) => setForm((f) => ({ ...f, questions_text: e.target.value }))}
+            placeholder="Позвоните нам или напишите в мессенджер — подскажем по меню, составу блюд и доставке."
+            className="input w-full"
+          />
+          <span className="mt-1 block text-xs text-slate-500">
+            Под текстом появятся кнопки: телефон и ссылки Telegram, WhatsApp, VK, если они заполнены выше.
+          </span>
+        </label>
+      </div>
       <div className="mt-5 flex justify-end">
         <button type="button" onClick={save} disabled={pending} className="btn btn-primary disabled:opacity-50">
           {pending ? "Сохранение…" : "Сохранить"}

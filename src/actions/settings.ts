@@ -10,6 +10,7 @@ export type DeliveryInput = {
   delivery_price: number;
   free_delivery_from: number;
   min_order: number;
+  delivery_iiko_id: string; // код позиции «Доставка» в iiko; пусто — доставка уходит только в комментарии
 };
 
 export async function updateDeliverySettings(input: DeliveryInput) {
@@ -27,6 +28,11 @@ export async function updateDeliverySettings(input: DeliveryInput) {
     }
   }
 
+  const iikoId = String(input.delivery_iiko_id ?? "").trim();
+  if (iikoId && !/^[0-9a-zA-Z-]{8,64}$/.test(iikoId)) {
+    return { ok: false as const, error: "Код доставки в iiko: только буквы, цифры и дефисы (например, a1b2c3d4-…)" };
+  }
+
   // Допущение: site_settings.key — уникальный ключ, value — jsonb (число сохраняется как число)
   const { error } = await createServiceClient()
     .from("site_settings")
@@ -35,6 +41,7 @@ export async function updateDeliverySettings(input: DeliveryInput) {
         { key: "delivery_price", value: input.delivery_price },
         { key: "free_delivery_from", value: input.free_delivery_from },
         { key: "min_order", value: input.min_order },
+        { key: "delivery_iiko_id", value: iikoId },
       ],
       { onConflict: "key" }
     );

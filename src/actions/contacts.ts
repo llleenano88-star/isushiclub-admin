@@ -9,6 +9,8 @@ export type ContactsInput = {
   telegram: string;
   vk: string;
   whatsapp: string;
+  questions_title: string;
+  questions_text: string;
 };
 
 export async function updateContacts(input: ContactsInput) {
@@ -20,6 +22,8 @@ export async function updateContacts(input: ContactsInput) {
     telegram: input.telegram.trim(),
     vk: input.vk.trim(),
     whatsapp: input.whatsapp.trim(),
+    questions_title: input.questions_title.trim().slice(0, 100),
+    questions_text: input.questions_text.trim().slice(0, 500),
   };
 
   if (v.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.contact_email)) {

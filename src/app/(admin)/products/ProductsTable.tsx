@@ -10,6 +10,7 @@ import { money, sortBy } from "@/lib/utils";
 
 type Product = Record<string, any>;
 type Category = { id: string | number; name: string };
+type OptGroup = { title: string; choices: string };
 type Variant = { label: string; price: string; iiko_id: string; sizeId?: string | null };
 
 const minPrice = (p: Product) => {
@@ -196,6 +197,16 @@ function ProductModal({
       : [{ label: "", price: "", iiko_id: "" }];
   });
 
+  // Выбор у товара: заголовок + варианты, по одному в строке. Своих iiko-кодов у вариантов выбора нет.
+  const [opts, setOpts] = useState<OptGroup[]>(() =>
+    (Array.isArray(product?.options) ? product!.options : []).map((g: any) => ({
+      title: String(g?.title ?? ""),
+      choices: (Array.isArray(g?.choices) ? g.choices : []).join("\n"),
+    }))
+  );
+  const setOpt = (i: number, patch: Partial<OptGroup>) =>
+    setOpts((l) => l.map((g, idx) => (idx === i ? { ...g, ...patch } : g)));
+
   const setVar = (i: number, patch: Partial<Variant>) =>
     setVariants((l) => l.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
 
@@ -209,6 +220,10 @@ function ProductModal({
       JSON.stringify(
         variants.map(({ iiko_id, ...v }) => (iiko_id.trim() ? { ...v, iiko_id: iiko_id.trim() } : v))
       )
+    );
+    fd.set(
+      "options",
+      JSON.stringify(opts.map((g) => ({ title: g.title.trim(), choices: g.choices.split("\n").map((c) => c.trim()).filter(Boolean) })))
     );
     // Если фото не выбрано — отправляем пустой файл, как раньше отправлял пустой input
     fd.set("image", cropped ?? new File([], ""));
@@ -271,6 +286,32 @@ function ProductModal({
           <button type="button" className="btn-secondary mt-2" onClick={() => setVariants((l) => [...l, { label: "", price: "", iiko_id: "" }])}>
             + Добавить вариант
           </button>
+        </div>
+
+        <div>
+          <label className="label">Выбор у товара (необязательно)</label>
+          <p className="mb-2 text-xs text-slate-500">
+            Клиент обязательно выберет один вариант из каждой группы, выбор уйдёт в комментарий к заказу в iiko. Отдельных iiko-кодов у выбора нет.
+          </p>
+          <div className="space-y-3">
+            {opts.map((g, i) => (
+              <div key={i} className="rounded-md border border-slate-200 p-3">
+                <div className="mb-2 flex gap-2">
+                  <input className="input" placeholder="Заголовок, например: Соус" value={g.title} onChange={(e) => setOpt(i, { title: e.target.value })} />
+                  <button type="button" className="btn-secondary" aria-label="Удалить выбор" onClick={() => setOpts((l) => l.filter((_, idx) => idx !== i))}>×</button>
+                </div>
+                <textarea className="input" rows={3} placeholder={"Варианты, каждый с новой строки:\nОстрый\nНе острый"} value={g.choices} onChange={(e) => setOpt(i, { choices: e.target.value })} />
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setOpts((l) => [...l, { title: "Соус", choices: "Острый\nНе острый" }])}>
+              + Соус: острый / не острый
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => setOpts((l) => [...l, { title: "Ролл", choices: "" }])}>
+              + Выбор ролла
+            </button>
+          </div>
         </div>
 
         <div>

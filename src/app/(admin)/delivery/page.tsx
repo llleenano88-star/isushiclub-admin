@@ -19,7 +19,7 @@ export default async function DeliveryPage() {
   const { data, error } = await createServiceClient()
     .from("site_settings")
     .select("key, value")
-    .in("key", ["delivery_price", "free_delivery_from", "min_order"]);
+    .in("key", ["delivery_price", "free_delivery_from", "min_order", "delivery_iiko_id"]);
 
   const map: Record<string, unknown> = {};
   for (const row of (data ?? []) as any[]) map[row.key] = row.value;
@@ -37,6 +37,7 @@ export default async function DeliveryPage() {
             delivery_price: toNum(map.delivery_price),
             free_delivery_from: toNum(map.free_delivery_from),
             min_order: toNum(map.min_order),
+            delivery_iiko_id: typeof map.delivery_iiko_id === "string" ? map.delivery_iiko_id.replace(/^"+|"+$/g, "").trim() : "",
           }}
         />
       )}
