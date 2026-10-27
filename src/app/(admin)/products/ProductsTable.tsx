@@ -342,6 +342,9 @@ function ProductModal({
             <input type="hidden" name="spicy_form" value="1" />
             <input type="checkbox" name="is_spicy" defaultChecked={!!product?.is_spicy} /> Острый (перчик на карточке)
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="is_hit" defaultChecked={!!product?.is_hit} /> Хит (оранжевый значок и раздел «Хиты»)
+          </label>
         </div>
 
         <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
