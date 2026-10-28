@@ -9,7 +9,7 @@ create table if not exists promotions (
   title text not null,
   description text,
   image_url text,
-  kind text not null check (kind in ('gift_from_amount','cheapest_free','combo_gift','percent','fixed')),
+  kind text not null check (kind in ('gift_from_amount','cheapest_free','combo_gift','percent','fixed','bundle_price')),
   config jsonb not null default '{}'::jsonb,
   time_from text,            -- 'HH:MM', пусто = весь день
   time_to text,              -- 'HH:MM'

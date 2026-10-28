@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { uploadImage } from "@/lib/upload";
 
-const KINDS = ["gift_from_amount", "cheapest_free", "combo_gift", "percent", "fixed"] as const;
+const KINDS = ["gift_from_amount", "cheapest_free", "combo_gift", "percent", "fixed", "bundle_price"] as const;
 const strs = (v: unknown, max = 200) => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, max) : []);
 const nonNeg = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
 
@@ -45,7 +45,15 @@ function build(d: any): { row?: Record<string, any>; error?: string } {
       const qty = Math.floor(nonNeg(c.qty)); const gifts = cleanGifts(c.gifts);
       if (qty < 1) return { error: "Укажите, сколько штук нужно купить" };
       if (!gifts.length) return { error: "Выберите хотя бы один подарок" };
-      config = { qty, repeat: !!c.repeat, filter: cleanFilter(c.filter), gifts };
+      config = { qty, repeat: !!c.repeat, minSubtotal: nonNeg(c.minSubtotal), filter: cleanFilter(c.filter), gifts };
+      break;
+    }
+    case "bundle_price": {
+      const qty = Math.floor(nonNeg(c.qty)); const price = nonNeg(c.price); const filter = cleanFilter(c.filter);
+      if (qty < 2) return { error: "Укажите, сколько товаров в наборе (минимум 2)" };
+      if (price < 1) return { error: "Укажите цену набора" };
+      if (!filter.productIds.length && !filter.categoryIds.length) return { error: "Отметьте товары (или категорию), которые участвуют в акции" };
+      config = { qty, price, filter };
       break;
     }
     case "percent": {

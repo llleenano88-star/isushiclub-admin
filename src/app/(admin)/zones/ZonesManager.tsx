@@ -41,7 +41,7 @@ function PolygonEditor({ points, setPoints, color, others }: { points: [number, 
       if (dead || !box.current) return;
       L.current = Lf;
       const m = Lf.map(box.current, { scrollWheelZoom: true }).setView(points[0] ?? [53.2, 50.15], 12); map.current = m;
-      Lf.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(m);
+      Lf.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap, © CARTO" }).addTo(m);
       others.forEach((z) => { if (z.polygon?.length >= 3) Lf.polygon(z.polygon, { color: z.color, weight: 1, dashArray: "4", fillOpacity: 0.08, interactive: false }).addTo(m); });
       if (points.length >= 3) m.fitBounds(Lf.polygon(points).getBounds(), { padding: [30, 30] });
       m.on("click", (e: any) => set.current([...pts.current, [Number(e.latlng.lat.toFixed(6)), Number(e.latlng.lng.toFixed(6))]]));

@@ -345,6 +345,9 @@ function ProductModal({
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="is_hit" defaultChecked={!!product?.is_hit} /> Хит (оранжевый значок и раздел «Хиты»)
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="is_promo" defaultChecked={!!product?.is_promo} /> Акционная позиция (свой акционный код iiko и цена; если в корзине такая позиция, другие акции и промокод не действуют)
+          </label>
         </div>
 
         <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">

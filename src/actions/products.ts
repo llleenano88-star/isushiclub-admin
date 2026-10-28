@@ -68,6 +68,7 @@ export async function saveProduct(formData: FormData) {
   if (formData.get("spicy_form") === "1") {
     record.is_spicy = formData.get("is_spicy") === "on";
     record.is_hit = formData.get("is_hit") === "on";
+    record.is_promo = formData.get("is_promo") === "on";
   }
 
   const file = formData.get("image");
@@ -83,12 +84,12 @@ export async function saveProduct(formData: FormData) {
   const write = (rec: Record<string, any>) =>
     id ? db.from("products").update(rec).eq("id", id) : db.from("products").insert(rec);
   let { error } = await write(record);
-  if (error && error.code === "42703" && ("options" in record || "is_spicy" in record || "is_hit" in record)) {
+  if (error && error.code === "42703" && ("options" in record || "is_spicy" in record || "is_hit" in record || "is_promo" in record)) {
     // Новых колонок ещё нет (не выполнены миграции 009/010): сохраняем остальное, чтобы ничего не потерялось
-    if ((optionsJson && optionsJson.length) || record.is_spicy || record.is_hit) {
-      return { ok: false as const, error: "Сначала выполните миграции 009, 010 и 011 в Supabase (папка supabase/migrations)" };
+    if ((optionsJson && optionsJson.length) || record.is_spicy || record.is_hit || record.is_promo) {
+      return { ok: false as const, error: "Сначала выполните миграции 009, 010, 011 и 012 в Supabase (папка supabase/migrations)" };
     }
-    const { options: _o, is_spicy: _s, is_hit: _h, ...rest } = record;
+    const { options: _o, is_spicy: _s, is_hit: _h, is_promo: _p, ...rest } = record;
     ({ error } = await write(rest));
   }
   if (error) return { ok: false as const, error: error.message };
