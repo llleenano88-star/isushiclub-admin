@@ -7,6 +7,27 @@ import { ORDER_STATUSES, receiveLabel, statusColor, statusLabel } from "@/lib/st
 import { dateTime, downloadCsv, money, sortBy } from "@/lib/utils";
 
 type Order = Record<string, any>;
+
+// Адрес в базе хранится как {text: "..."} (или обычная строка): всегда приводим к тексту, иначе страница падает
+function addressText(a: unknown): string {
+  if (a == null) return "";
+  if (typeof a === "string") return a;
+  if (typeof a === "object") {
+    const t = (a as Record<string, unknown>).text;
+    if (typeof t === "string") return t;
+    return Object.values(a as Record<string, unknown>).filter((v) => typeof v === "string" || typeof v === "number").join(", ");
+  }
+  return String(a);
+}
+const PAY: Record<string, string> = { cash: "Наличными при получении", transfer: "Переводом при получении", qr: "QR-кодом при получении", card: "Переводом или QR-кодом при получении" };
+// Применённые акции и подарки (поле promo_info), безопасно в текст
+function promoText(info: unknown): string {
+  if (!info || typeof info !== "object") return "";
+  const i = info as { discounts?: unknown; gifts?: unknown };
+  const d = Array.isArray(i.discounts) ? i.discounts.map((x: any) => `${String(x?.title ?? "Акция")}: −${Number(x?.amount) || 0} ₽`) : [];
+  const g = Array.isArray(i.gifts) ? i.gifts.map((x) => `Подарок: ${String(x)}`) : [];
+  return [...d, ...g].join("; ");
+}
 type SortKey = "number" | "created_at" | "customer_name" | "phone" | "total" | "status" | "receive_type" | "promo_code";
 
 const COLS: { key: SortKey; label: string }[] = [
@@ -79,7 +100,7 @@ export function OrdersTable({ initial }: { initial: Order[] }) {
       ["Номер", "Дата", "Клиент", "Телефон", "Сумма", "Скидка", "Статус", "Получение", "Адрес", "Промокод", "Номер в iiko", "Комментарий"],
       ...rows.map((o) => [
         o.number, dateTime(o.created_at), o.customer_name, o.phone, o.total, o.discount,
-        statusLabel(o.status), receiveLabel(o.receive_type), o.address, o.promo_code, o.iiko_order_id, o.comment,
+        statusLabel(o.status), receiveLabel(o.receive_type), addressText(o.address), o.promo_code, o.iiko_order_id, o.comment,
       ]),
     ]);
   }
@@ -199,7 +220,10 @@ function OrderModal({ order, onClose, onStatus }: { order: Order; onClose: () =>
           {row("Клиент", order.customer_name)}
           {row("Телефон", order.phone)}
           {row("Получение", receiveLabel(order.receive_type))}
-          {row("Адрес", order.address)}
+          {row("Адрес", addressText(order.address))}
+          {order.delivery_zone ? row("Зона доставки", String(order.delivery_zone)) : null}
+          {order.desired_time ? row("Ко времени", dateTime(order.desired_time)) : null}
+          {order.payment_method ? row("Оплата", PAY[String(order.payment_method)] ?? String(order.payment_method)) : null}
         </div>
         <div>
           {row(
@@ -212,6 +236,7 @@ function OrderModal({ order, onClose, onStatus }: { order: Order; onClose: () =>
             </select>
           )}
           {row("Промокод", order.promo_code)}
+          {promoText(order.promo_info) ? row("Акции", promoText(order.promo_info)) : null}
           {row("Скидка", order.discount ? money(order.discount) : "")}
           {row("Сумма", <b>{money(order.total)}</b>)}
           {row(
