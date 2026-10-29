@@ -8,6 +8,7 @@ const ITEMS = [
   { href: "/products", icon: "🍣", label: "Товары", ready: true },
   { href: "/categories", icon: "📂", label: "Категории", ready: true },
   { href: "/promo", icon: "🎟", label: "Промокоды", ready: true },
+  { href: "/dish-order", icon: "↕", label: "Порядок блюд", ready: true },
   { href: "/offers", icon: "🎁", label: "Акции", ready: true },
   { href: "/extras", icon: "➕", label: "Доп. товары", ready: true },
   { href: "/delivery", icon: "🚚", label: "Доставка", ready: true },
