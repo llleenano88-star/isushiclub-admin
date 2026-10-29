@@ -32,7 +32,7 @@ export default async function DesignPage() {
   const { data, error } = await db
     .from("site_settings")
     .select("key, value")
-    .in("key", ["banners", "category_images", "about", "map_embed", "delivery_time"]);
+    .in("key", ["banners", "category_images", "category_images_mobile", "about", "map_embed", "delivery_time"]);
 
   const { data: cats } = await db
     .from("categories")
@@ -47,6 +47,7 @@ export default async function DesignPage() {
     .map((b: any) => ({
       image: String(b?.image ?? b?.url ?? b?.src ?? ""),
       link: String(b?.link ?? b?.href ?? ""),
+      image_mobile: String(b?.image_mobile ?? b?.mobile ?? ""),
     }))
     .filter((b: { image: string }) => b.image);
 
@@ -55,6 +56,14 @@ export default async function DesignPage() {
   if (rawImages && typeof rawImages === "object" && !Array.isArray(rawImages)) {
     for (const [k, v] of Object.entries(rawImages)) {
       if (typeof v === "string") categoryImages[k] = v;
+    }
+  }
+
+  const rawImagesMobile = parse(map.category_images_mobile);
+  const categoryImagesMobile: Record<string, string> = {};
+  if (rawImagesMobile && typeof rawImagesMobile === "object" && !Array.isArray(rawImagesMobile)) {
+    for (const [k, v] of Object.entries(rawImagesMobile)) {
+      if (typeof v === "string") categoryImagesMobile[k] = v;
     }
   }
 
@@ -80,6 +89,7 @@ export default async function DesignPage() {
           initial={{
             banners,
             category_images: categoryImages,
+            category_images_mobile: categoryImagesMobile,
             about,
             map_embed: str(map.map_embed),
             delivery_time: str(map.delivery_time),

@@ -8,48 +8,63 @@ import { saveZone, deleteZone, type ZoneInput } from "@/actions/zones";
 
 type Zone = { id: string; name: string; color: string; polygon: [number, number][]; delivery_price: number | null; min_order: number | null; free_from: number | null; is_active: boolean; sort_order: number };
 
-const LEAFLET_JS = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
-const LEAFLET_CSS = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
-function loadLeaflet(): Promise<any> {
+// Карта OpenFreeMap (MapLibre): без ключа и без лишних значков
+const ML_JS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js";
+const ML_CSS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css";
+const STYLE = "https://tiles.openfreemap.org/styles/positron";
+function loadMapLibre(): Promise<any> {
   const w = window as any;
-  if (w.L) return Promise.resolve(w.L);
+  if (w.maplibregl) return Promise.resolve(w.maplibregl);
   return new Promise((resolve, reject) => {
-    if (!document.querySelector(`link[href="${LEAFLET_CSS}"]`)) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = LEAFLET_CSS; document.head.appendChild(l); }
-    const ex = document.querySelector(`script[src="${LEAFLET_JS}"]`);
-    const done = () => (w.L ? resolve(w.L) : reject(new Error("leaflet")));
+    if (!document.querySelector(`link[href="${ML_CSS}"]`)) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = ML_CSS; document.head.appendChild(l); }
+    const ex = document.querySelector(`script[src="${ML_JS}"]`);
+    const done = () => (w.maplibregl ? resolve(w.maplibregl) : reject(new Error("maplibre")));
     if (ex) { ex.addEventListener("load", done); return; }
-    const s = document.createElement("script"); s.src = LEAFLET_JS; s.async = true; s.onload = done; s.onerror = () => reject(new Error("leaflet")); document.head.appendChild(s);
+    const sc = document.createElement("script"); sc.src = ML_JS; sc.async = true; sc.onload = done; sc.onerror = () => reject(new Error("maplibre")); document.head.appendChild(sc);
   });
 }
+const lngLat = (p: [number, number]) => [p[1], p[0]];
+const emptyFc = { type: "FeatureCollection", features: [] as any[] };
 
 // Редактор многоугольника: клик по карте добавляет точку
 function PolygonEditor({ points, setPoints, color, others }: { points: [number, number][]; setPoints: (p: [number, number][]) => void; color: string; others: Zone[] }) {
-  const box = useRef<HTMLDivElement>(null); const map = useRef<any>(null); const L = useRef<any>(null); const layer = useRef<any>(null);
-  const pts = useRef(points); pts.current = points; const set = useRef(setPoints); set.current = setPoints;
+  const box = useRef<HTMLDivElement>(null); const map = useRef<any>(null); const ready = useRef(false);
+  const pts = useRef(points); pts.current = points; const set = useRef(setPoints); set.current = setPoints; const col = useRef(color); col.current = color;
   const [err, setErr] = useState("");
-  const draw = () => {
-    if (!map.current || !L.current) return;
-    if (layer.current) layer.current.remove();
-    const g = L.current.layerGroup().addTo(map.current); layer.current = g;
-    if (pts.current.length >= 3) L.current.polygon(pts.current, { color, weight: 3, fillColor: color, fillOpacity: 0.3 }).addTo(g);
-    else if (pts.current.length >= 2) L.current.polyline(pts.current, { color, weight: 3 }).addTo(g);
-    pts.current.forEach((p) => L.current.circleMarker(p, { radius: 5, color: "#fff", weight: 2, fillColor: color, fillOpacity: 1 }).addTo(g));
+  const render = () => {
+    const m = map.current; if (!m || !ready.current) return;
+    const p = pts.current; const feats: any[] = [];
+    if (p.length >= 3) feats.push({ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[...p.map(lngLat), lngLat(p[0])]] } });
+    else if (p.length === 2) feats.push({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: p.map(lngLat) } });
+    (m.getSource("draft") as any)?.setData({ type: "FeatureCollection", features: feats });
+    (m.getSource("pts") as any)?.setData({ type: "FeatureCollection", features: p.map((q) => ({ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: lngLat(q) } })) });
+    ["draft-fill", "draft-line", "pts"].forEach((id) => { if (!m.getLayer(id)) return; const prop = id === "draft-fill" ? "fill-color" : id === "draft-line" ? "line-color" : "circle-color"; m.setPaintProperty(id, prop, col.current); });
   };
   useEffect(() => {
     let dead = false;
-    loadLeaflet().then((Lf) => {
+    loadMapLibre().then((ml) => {
       if (dead || !box.current) return;
-      L.current = Lf;
-      const m = Lf.map(box.current, { scrollWheelZoom: true }).setView(points[0] ?? [53.2, 50.15], 12); map.current = m;
-      Lf.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap, © CARTO" }).addTo(m);
-      others.forEach((z) => { if (z.polygon?.length >= 3) Lf.polygon(z.polygon, { color: z.color, weight: 1, dashArray: "4", fillOpacity: 0.08, interactive: false }).addTo(m); });
-      if (points.length >= 3) m.fitBounds(Lf.polygon(points).getBounds(), { padding: [30, 30] });
-      m.on("click", (e: any) => set.current([...pts.current, [Number(e.latlng.lat.toFixed(6)), Number(e.latlng.lng.toFixed(6))]]));
-      draw(); setTimeout(() => m.invalidateSize(), 200);
+      const m = new ml.Map({ container: box.current, style: STYLE, center: points[0] ? lngLat(points[0]) : [50.15, 53.2], zoom: 11, attributionControl: false });
+      map.current = m;
+      m.addControl(new ml.AttributionControl({ compact: true, customAttribution: "OpenFreeMap © OpenMapTiles Data from OpenStreetMap" }));
+      m.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
+      m.on("load", () => {
+        m.addSource("others", { type: "geojson", data: { type: "FeatureCollection", features: others.filter((z) => z.polygon?.length >= 3).map((z) => ({ type: "Feature", properties: { c: z.color }, geometry: { type: "Polygon", coordinates: [[...z.polygon.map(lngLat), lngLat(z.polygon[0])]] } })) } });
+        m.addLayer({ id: "others-fill", type: "fill", source: "others", paint: { "fill-color": ["get", "c"], "fill-opacity": 0.08 } });
+        m.addLayer({ id: "others-line", type: "line", source: "others", paint: { "line-color": ["get", "c"], "line-width": 1, "line-dasharray": [2, 2] } });
+        m.addSource("draft", { type: "geojson", data: emptyFc });
+        m.addLayer({ id: "draft-fill", type: "fill", source: "draft", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": col.current, "fill-opacity": 0.3 } });
+        m.addLayer({ id: "draft-line", type: "line", source: "draft", paint: { "line-color": col.current, "line-width": 3 } });
+        m.addSource("pts", { type: "geojson", data: emptyFc });
+        m.addLayer({ id: "pts", type: "circle", source: "pts", paint: { "circle-radius": 6, "circle-color": col.current, "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } });
+        ready.current = true; render();
+        if (pts.current.length >= 3) { const b = new ml.LngLatBounds(); pts.current.forEach((q) => b.extend(lngLat(q))); m.fitBounds(b, { padding: 40, duration: 0 }); }
+      });
+      m.on("click", (e: any) => set.current([...pts.current, [Number(e.lngLat.lat.toFixed(6)), Number(e.lngLat.lng.toFixed(6))]]));
     }).catch(() => setErr("Карта не загрузилась. Проверьте интернет и обновите страницу."));
-    return () => { dead = true; if (map.current) { map.current.remove(); map.current = null; } };
+    return () => { dead = true; if (map.current) { map.current.remove(); map.current = null; } ready.current = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(draw, [points, color]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(render, [points, color]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div>
       <div ref={box} className="h-80 w-full rounded-md border border-slate-300 bg-slate-100" />

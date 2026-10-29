@@ -11,6 +11,8 @@ export const SPECS = {
   product: { aspect: 1, width: 500, height: 500 } as CropSpec,
   banner: { aspect: 3, width: 1800, height: 600 } as CropSpec,
   cover: { aspect: 3, width: 1200, height: 400 } as CropSpec,
+  bannerMobile: { aspect: 4 / 3, width: 1200, height: 900 } as CropSpec,
+  coverMobile: { aspect: 2, width: 1200, height: 600 } as CropSpec,
 };
 
 export function validateSource(file: File): string | null {

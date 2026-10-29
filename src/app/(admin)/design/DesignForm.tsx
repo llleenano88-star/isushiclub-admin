@@ -33,6 +33,7 @@ export function DesignForm({
   const toast = useToast();
   const [banners, setBanners] = useState<Banner[]>(initial.banners);
   const [catImages, setCatImages] = useState<Record<string, string>>(initial.category_images);
+  const [catImagesMobile, setCatImagesMobile] = useState<Record<string, string>>(initial.category_images_mobile ?? {});
   const [about, setAbout] = useState<About>(initial.about);
   const [mapEmbed, setMapEmbed] = useState(initial.map_embed);
   const [deliveryTime, setDeliveryTime] = useState(initial.delivery_time);
@@ -86,6 +87,19 @@ export function DesignForm({
     });
   }
 
+  function setBannerMobile(index: number, file: File | null) {
+    askCrop(file, SPECS.bannerMobile, "Обрезка баннера для телефона (4:3)", async (cropped) => {
+      setUploading(`bannerm-${index}`);
+      const url = await upload(cropped, "banners");
+      setUploading(null);
+      if (url) setBanners((prev) => prev.map((b, i) => (i === index ? { ...b, image_mobile: url } : b)));
+    });
+  }
+
+  function removeBannerMobile(index: number) {
+    setBanners((prev) => prev.map((b, i) => (i === index ? { ...b, image_mobile: "" } : b)));
+  }
+
   function removeBanner(index: number) {
     if (!confirm("Удалить баннер?")) return;
     setBanners((prev) => prev.filter((_, i) => i !== index));
@@ -118,6 +132,23 @@ export function DesignForm({
     });
   }
 
+  function setCoverMobile(slug: string, file: File | null) {
+    askCrop(file, SPECS.coverMobile, "Обрезка обложки категории для телефона (2:1)", async (cropped) => {
+      setUploading(`catm-${slug}`);
+      const url = await upload(cropped, "categories");
+      setUploading(null);
+      if (url) setCatImagesMobile((prev) => ({ ...prev, [slug]: url }));
+    });
+  }
+
+  function clearCoverMobile(slug: string) {
+    setCatImagesMobile((prev) => {
+      const next = { ...prev };
+      delete next[slug];
+      return next;
+    });
+  }
+
   function clearCover(slug: string) {
     setCatImages((prev) => {
       const next = { ...prev };
@@ -144,6 +175,7 @@ export function DesignForm({
     const payload: SiteSettingsInput = {
       banners,
       category_images: catImages,
+      category_images_mobile: catImagesMobile,
       about,
       map_embed: extractSrc(mapEmbed),
       delivery_time: deliveryTime,
@@ -163,7 +195,7 @@ export function DesignForm({
       {/* Баннеры */}
       <section className={card}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-800">Баннеры</h2>
+          <div><h2 className="text-base font-semibold text-slate-800">Баннеры</h2><p className="mt-1 text-xs text-slate-500">Основная картинка (3:1) показывается на компьютере. Если загрузить картинку «для телефона» (4:3), на телефоне покажется она, иначе основная.</p></div>
           <label className="btn btn-secondary cursor-pointer">
             {uploading === "banner" ? "Загрузка…" : "+ Добавить баннер"}
             <input
@@ -203,7 +235,20 @@ export function DesignForm({
                   ⠿
                 </span>
                 <span className="w-6 text-sm text-slate-500">{i + 1}</span>
-                <img src={b.image} alt="" className="h-16 w-32 rounded object-cover bg-slate-100" />
+                <div className="flex flex-col gap-1">
+                  <img src={b.image} alt="" className="h-16 w-32 rounded object-cover bg-slate-100" title="Для компьютера (3:1)" />
+                  <span className="text-center text-[10px] text-slate-400">компьютер 3:1</span>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <div className="h-16 w-[85px] overflow-hidden rounded bg-slate-100">{b.image_mobile && <img src={b.image_mobile} alt="" className="h-full w-full object-cover" />}</div>
+                  <div className="flex items-center gap-1 text-[10px]">
+                    <label className="cursor-pointer text-emerald-700 underline">
+                      {uploading === `bannerm-${i}` ? "…" : b.image_mobile ? "заменить" : "для телефона 4:3"}
+                      <input type="file" accept={ALLOWED_TYPES.join(",")} className="hidden" onChange={(e) => { setBannerMobile(i, e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                    </label>
+                    {b.image_mobile && <button type="button" onClick={() => removeBannerMobile(i)} className="text-slate-400 underline">убрать</button>}
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={b.link}
@@ -256,7 +301,17 @@ export function DesignForm({
                   <div className="h-14 w-24 overflow-hidden rounded bg-slate-100">
                     {url && <img src={url} alt="" className="h-full w-full object-cover" />}
                   </div>
-                  <span className="flex-1 text-sm font-medium text-slate-900">{c.name}</span>
+                  <span className="flex-1 text-sm font-medium text-slate-900">{c.name}<span className="block text-[10px] font-normal text-slate-400">компьютер 3:1</span></span>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="h-14 w-[112px] overflow-hidden rounded bg-slate-100">{catImagesMobile[c.slug] && <img src={catImagesMobile[c.slug]} alt="" className="h-full w-full object-cover" />}</div>
+                    <div className="flex items-center gap-1 text-[10px]">
+                      <label className="cursor-pointer text-emerald-700 underline">
+                        {uploading === `catm-${c.slug}` ? "…" : catImagesMobile[c.slug] ? "заменить" : "для телефона 2:1"}
+                        <input type="file" accept={ALLOWED_TYPES.join(",")} className="hidden" onChange={(e) => { setCoverMobile(c.slug, e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                      </label>
+                      {catImagesMobile[c.slug] && <button type="button" onClick={() => clearCoverMobile(c.slug)} className="text-slate-400 underline">убрать</button>}
+                    </div>
+                  </div>
                   <label className="btn btn-secondary cursor-pointer">
                     {uploading === `cat-${c.slug}` ? "Загрузка…" : url ? "Заменить" : "Загрузить"}
                     <input

@@ -55,7 +55,11 @@ export async function updateDeliverySettings(input: DeliveryInput) {
 // ---------- Оформление сайта ----------
 
 // Допущение: форма значений в site_settings (сверьте с тем, что читает сайт)
-export type Banner = { image: string; link: string };
+export type Banner = {
+  image: string;
+  link: string;
+  image_mobile?: string; // картинка для телефона (необязательно)
+};
 export type About = {
   title: string;
   blocks: string[];
@@ -66,6 +70,7 @@ export type About = {
 export type SiteSettingsInput = {
   banners: Banner[];
   category_images: Record<string, string>; // ключ — slug категории
+  category_images_mobile?: Record<string, string>; // картинки категорий для телефона
   about: About;
   map_embed: string;
   delivery_time: string;
@@ -96,11 +101,16 @@ export async function updateSiteSettings(input: SiteSettingsInput) {
 
   const banners = input.banners
     .filter((b) => b.image.trim())
-    .map((b) => ({ image: b.image.trim(), link: b.link.trim() }));
+    .map((b) => ({ image: b.image.trim(), link: b.link.trim(), ...(b.image_mobile && b.image_mobile.trim() ? { image_mobile: b.image_mobile.trim() } : {}) }));
 
   const categoryImages: Record<string, string> = {};
   for (const [slug, url] of Object.entries(input.category_images)) {
     if (url && url.trim()) categoryImages[slug] = url.trim();
+  }
+
+  const categoryImagesMobile: Record<string, string> = {};
+  for (const [slug, url] of Object.entries(input.category_images_mobile ?? {})) {
+    if (url && url.trim()) categoryImagesMobile[slug] = url.trim();
   }
 
   const about: About = {
@@ -117,6 +127,8 @@ export async function updateSiteSettings(input: SiteSettingsInput) {
       [
         { key: "banners", value: banners },
         { key: "category_images", value: categoryImages },
+        // Картинки для телефона пишем только если форма их прислала, иначе существующие не трогаем
+        ...(input.category_images_mobile !== undefined ? [{ key: "category_images_mobile", value: categoryImagesMobile }] : []),
         { key: "about", value: about },
         { key: "map_embed", value: mapEmbed },
         { key: "delivery_time", value: input.delivery_time.trim() },
