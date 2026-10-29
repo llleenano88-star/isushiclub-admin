@@ -32,7 +32,7 @@ export default async function DesignPage() {
   const { data, error } = await db
     .from("site_settings")
     .select("key, value")
-    .in("key", ["banners", "category_images", "category_images_mobile", "about", "map_embed", "delivery_time"]);
+    .in("key", ["banners", "category_images", "category_images_mobile", "category_icons", "about", "map_embed", "delivery_time"]);
 
   const { data: cats } = await db
     .from("categories")
@@ -67,6 +67,14 @@ export default async function DesignPage() {
     }
   }
 
+  const rawIcons = parse(map.category_icons);
+  const categoryIcons: Record<string, string> = {};
+  if (rawIcons && typeof rawIcons === "object" && !Array.isArray(rawIcons)) {
+    for (const [k, v] of Object.entries(rawIcons)) {
+      if (typeof v === "string") categoryIcons[k] = v;
+    }
+  }
+
   const rawAbout = parse(map.about);
   const aboutObj = rawAbout && typeof rawAbout === "object" ? (rawAbout as any) : {};
   const about = {
@@ -90,6 +98,7 @@ export default async function DesignPage() {
             banners,
             category_images: categoryImages,
             category_images_mobile: categoryImagesMobile,
+            category_icons: categoryIcons,
             about,
             map_embed: str(map.map_embed),
             delivery_time: str(map.delivery_time),

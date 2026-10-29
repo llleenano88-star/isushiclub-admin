@@ -71,6 +71,7 @@ export type SiteSettingsInput = {
   banners: Banner[];
   category_images: Record<string, string>; // ключ — slug категории
   category_images_mobile?: Record<string, string>; // картинки категорий для телефона
+  category_icons?: Record<string, string>; // значки категорий для окна «Меню»
   about: About;
   map_embed: string;
   delivery_time: string;
@@ -113,6 +114,11 @@ export async function updateSiteSettings(input: SiteSettingsInput) {
     if (url && url.trim()) categoryImagesMobile[slug] = url.trim();
   }
 
+  const categoryIcons: Record<string, string> = {};
+  for (const [slug, url] of Object.entries(input.category_icons ?? {})) {
+    if (url && url.trim()) categoryIcons[slug] = url.trim();
+  }
+
   const about: About = {
     title: input.about.title.trim(),
     blocks: input.about.blocks.map((s) => s.trim()).filter(Boolean),
@@ -128,6 +134,7 @@ export async function updateSiteSettings(input: SiteSettingsInput) {
         { key: "banners", value: banners },
         { key: "category_images", value: categoryImages },
         // Картинки для телефона пишем только если форма их прислала, иначе существующие не трогаем
+        ...(input.category_icons !== undefined ? [{ key: "category_icons", value: categoryIcons }] : []),
         ...(input.category_images_mobile !== undefined ? [{ key: "category_images_mobile", value: categoryImagesMobile }] : []),
         { key: "about", value: about },
         { key: "map_embed", value: mapEmbed },

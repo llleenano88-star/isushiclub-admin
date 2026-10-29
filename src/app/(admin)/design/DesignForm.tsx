@@ -33,6 +33,7 @@ export function DesignForm({
   const toast = useToast();
   const [banners, setBanners] = useState<Banner[]>(initial.banners);
   const [catImages, setCatImages] = useState<Record<string, string>>(initial.category_images);
+  const [catIcons, setCatIcons] = useState<Record<string, string>>(initial.category_icons ?? {});
   const [catImagesMobile, setCatImagesMobile] = useState<Record<string, string>>(initial.category_images_mobile ?? {});
   const [about, setAbout] = useState<About>(initial.about);
   const [mapEmbed, setMapEmbed] = useState(initial.map_embed);
@@ -141,6 +142,23 @@ export function DesignForm({
     });
   }
 
+  function setIcon(slug: string, file: File | null) {
+    askCrop(file, SPECS.icon, "Обрезка значка для окна «Меню» (квадрат)", async (cropped) => {
+      setUploading(`icon-${slug}`);
+      const url = await upload(cropped, "categories");
+      setUploading(null);
+      if (url) setCatIcons((prev) => ({ ...prev, [slug]: url }));
+    });
+  }
+
+  function clearIcon(slug: string) {
+    setCatIcons((prev) => {
+      const next = { ...prev };
+      delete next[slug];
+      return next;
+    });
+  }
+
   function clearCoverMobile(slug: string) {
     setCatImagesMobile((prev) => {
       const next = { ...prev };
@@ -176,6 +194,7 @@ export function DesignForm({
       banners,
       category_images: catImages,
       category_images_mobile: catImagesMobile,
+      category_icons: catIcons,
       about,
       map_embed: extractSrc(mapEmbed),
       delivery_time: deliveryTime,
@@ -334,6 +353,30 @@ export function DesignForm({
             })}
           </ul>
         )}
+      </section>
+
+      {/* Значки для окна «Меню» */}
+      <section className={card}>
+        <h2 className="mb-1 text-base font-semibold text-slate-800">Значки для окна «Меню»</h2>
+        <p className="mb-4 text-xs text-slate-500">
+          Квадратные картинки, которые видны в окне «Меню» по кнопке внизу сайта. Лучше всего квадрат от 400×400 пикселей (PNG или WebP, можно на белом или прозрачном фоне). Если значок не загружен, показывается обложка категории или фото первого блюда.
+        </p>
+        <ul className="divide-y divide-slate-100">
+          {[{ id: "new", name: "Новинки (автоматический раздел)", slug: "new" }, { id: "hits", name: "Хиты (автоматический раздел)", slug: "hits" }, ...categories].map((c) => {
+            const url = catIcons[c.slug];
+            return (
+              <li key={String(c.id)} className="flex items-center gap-3 py-2">
+                <div className="h-14 w-14 overflow-hidden rounded-xl bg-slate-100">{url && <img src={url} alt="" className="h-full w-full object-cover" />}</div>
+                <span className="flex-1 text-sm font-medium text-slate-900">{c.name}</span>
+                <label className="btn btn-secondary cursor-pointer">
+                  {uploading === `icon-${c.slug}` ? "Загрузка…" : url ? "Заменить" : "Загрузить"}
+                  <input type="file" accept={ALLOWED_TYPES.join(",")} className="hidden" onChange={(e) => { setIcon(c.slug, e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                </label>
+                {url && <button type="button" onClick={() => clearIcon(c.slug)} className="btn btn-secondary">Убрать</button>}
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       {/* О нас */}
