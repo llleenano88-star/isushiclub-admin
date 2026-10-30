@@ -31,6 +31,9 @@ export function OrderTimeForm({ initial }: { initial: OrderTimeInput }) {
         {num("pickup_lead_min", "Самовывоз: от")}{num("pickup_lead_max", "Самовывоз: до")}
         {num("delivery_lead_min", "Доставка: от")}{num("delivery_lead_max", "Доставка: до")}
       </div>
+      <label className="mt-4 block text-sm"><span className="label">Время на дорогу при доставке «ко времени»</span>
+        <div className="relative"><input type="number" min={0} max={180} className="input w-full pr-12" value={f.delivery_travel_min} onChange={(e) => setF({ ...f, delivery_travel_min: Number(e.target.value) })} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">мин</span></div></label>
+      <p className="mt-1 text-xs text-slate-500">Если клиент заказал доставку к 18:00, а здесь 40 минут, кухня получит «готовность к 17:20». Для самовывоза готовим точно ко времени клиента.</p>
       <p className="mt-2 text-xs text-slate-500">«От» — минимальный срок для выбора времени, «от–до» показывается клиенту как «через 30–40 мин».</p>
       <div className="mt-4 grid grid-cols-3 gap-4">
         <label className="block text-sm"><span className="label">Шаг времени</span>

@@ -6,7 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 export type OrderTimeInput = {
   pickup_lead_min: number; pickup_lead_max: number; delivery_lead_min: number; delivery_lead_max: number;
   slot_step: number; work_from: string; work_to: string; site_tz: string; zone_text: string;
-  close_cutoff_min: number; site_city: string;
+  close_cutoff_min: number; site_city: string; delivery_travel_min: number;
 };
 
 // Время заказа (минимальный срок для самовывоза и доставки, шаг, часы работы) и текст над картой зон
@@ -27,6 +27,8 @@ export async function updateOrderTimeSettings(input: OrderTimeInput) {
   if (input.work_to && !hh.test(input.work_to)) return { ok: false as const, error: "Часы работы: формат 22:00" };
   const cutoff = Number(input.close_cutoff_min);
   if (!Number.isFinite(cutoff) || cutoff < 0 || cutoff > 240) return { ok: false as const, error: "Закрытие приёма заказов: от 0 до 240 минут" };
+  const travel = Number(input.delivery_travel_min);
+  if (!Number.isFinite(travel) || travel < 0 || travel > 180) return { ok: false as const, error: "Время на дорогу: от 0 до 180 минут" };
   const tz = input.site_tz.trim() || "Europe/Samara";
   try { new Intl.DateTimeFormat("ru", { timeZone: tz }); } catch { return { ok: false as const, error: "Часовой пояс указан неверно (пример: Europe/Samara)" }; }
 
@@ -36,7 +38,7 @@ export async function updateOrderTimeSettings(input: OrderTimeInput) {
       { key: "delivery_lead_min", value: Number(input.delivery_lead_min) }, { key: "delivery_lead_max", value: Number(input.delivery_lead_max) },
       { key: "slot_step", value: Number(input.slot_step) }, { key: "work_from", value: input.work_from }, { key: "work_to", value: input.work_to },
       { key: "site_tz", value: tz }, { key: "zone_text", value: input.zone_text.trim().slice(0, 300) },
-      { key: "close_cutoff_min", value: Math.floor(cutoff) }, { key: "site_city", value: input.site_city.trim().slice(0, 60) || "Самара" },
+      { key: "close_cutoff_min", value: Math.floor(cutoff) }, { key: "delivery_travel_min", value: Math.floor(travel) }, { key: "site_city", value: input.site_city.trim().slice(0, 60) || "Самара" },
     ],
     { onConflict: "key" }
   );
