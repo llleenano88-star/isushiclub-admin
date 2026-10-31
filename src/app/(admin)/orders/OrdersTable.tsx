@@ -220,6 +220,7 @@ function OrderModal({ order, onClose, onStatus }: { order: Order; onClose: () =>
           {row("Клиент", order.customer_name)}
           {row("Телефон", order.phone)}
           {row("Получение", receiveLabel(order.receive_type))}
+          {order.iiko_error ? <div className="rounded-md bg-red-50 p-3 text-sm text-red-700"><b>Заказ не попал в iiko или не подтверждён:</b> {String(order.iiko_error)}</div> : null}
           {row("Адрес", addressText(order.address))}
           {order.delivery_zone ? row("Зона доставки", String(order.delivery_zone)) : null}
           {order.desired_time ? row("Ко времени", dateTime(order.desired_time)) : null}
