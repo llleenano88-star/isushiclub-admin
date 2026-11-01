@@ -9,7 +9,6 @@ import {
   money,
   shortDate,
   startOfDayIso,
-  statusLabel,
   topDishes,
 } from "@/lib/stats";
 
@@ -59,9 +58,7 @@ export default async function DashboardPage() {
   );
   const top = topDishes(items, 5);
 
-  // Допущения: «новый» заказ = status "new"; заказ не ушёл в iiko, если iiko_order_id пуст
-  const newCount = orders.filter((o) => o.status === "new").length;
-  const notInIiko = valid.filter((o) => !o.iiko_order_id);
+    const notInIiko = valid.filter((o) => !o.iiko_order_id);
 
   const last10 = orders.slice(0, 10);
   const card = "rounded-lg border border-slate-200 bg-white p-5";
@@ -118,12 +115,6 @@ export default async function DashboardPage() {
           <h2 className="mb-3 text-base font-semibold text-slate-800">Уведомления</h2>
           <ul className="space-y-2 text-sm">
             <li className="flex items-center justify-between">
-              <span className="text-slate-700">Новые заказы</span>
-              <span className={`badge ${newCount ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
-                {newCount}
-              </span>
-            </li>
-            <li className="flex items-center justify-between">
               <span className="text-slate-700">Заказы не в iiko</span>
               <span className={`badge ${notInIiko.length ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
                 {notInIiko.length}
@@ -149,14 +140,13 @@ export default async function DashboardPage() {
               <th className="th">№</th>
               <th className="th">Клиент</th>
               <th className="th">Сумма</th>
-              <th className="th">Статус</th>
               <th className="th">Создан</th>
             </tr>
           </thead>
           <tbody>
             {last10.length === 0 && (
               <tr>
-                <td colSpan={5} className="td py-6 text-center text-slate-500">
+                <td colSpan={4} className="td py-6 text-center text-slate-500">
                   Заказов за последние 7 дней нет
                 </td>
               </tr>
@@ -166,9 +156,6 @@ export default async function DashboardPage() {
                 <td className="td font-medium text-slate-900">{o.number ?? o.id}</td>
                 <td className="td text-slate-700">{o.customer_name || "—"}</td>
                 <td className="td text-slate-900">{money(Number(o.total) || 0)}</td>
-                <td className="td">
-                  <span className="badge bg-slate-100 text-slate-700">{statusLabel(String(o.status))}</span>
-                </td>
                 <td className="td text-slate-600">
                   {new Date(o.created_at).toLocaleString("ru-RU", {
                     timeZone: "Europe/Moscow",

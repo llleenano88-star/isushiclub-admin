@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
-import { getOrderItems, updateOrderStatus } from "@/actions/orders";
-import { ORDER_STATUSES, receiveLabel, statusColor, statusLabel } from "@/lib/statuses";
+import { getOrderItems } from "@/actions/orders";
+import { receiveLabel } from "@/lib/statuses";
 import { dateTime, downloadCsv, money, sortBy } from "@/lib/utils";
 
 type Order = Record<string, any>;
@@ -28,7 +28,7 @@ function promoText(info: unknown): string {
   const g = Array.isArray(i.gifts) ? i.gifts.map((x) => `Подарок: ${String(x)}`) : [];
   return [...d, ...g].join("; ");
 }
-type SortKey = "number" | "created_at" | "customer_name" | "phone" | "total" | "status" | "receive_type" | "promo_code";
+type SortKey = "number" | "created_at" | "customer_name" | "phone" | "total" | "receive_type" | "promo_code";
 
 const COLS: { key: SortKey; label: string }[] = [
   { key: "number", label: "№" },
@@ -36,7 +36,6 @@ const COLS: { key: SortKey; label: string }[] = [
   { key: "customer_name", label: "Клиент" },
   { key: "phone", label: "Телефон" },
   { key: "total", label: "Сумма" },
-  { key: "status", label: "Статус" },
   { key: "receive_type", label: "Получение" },
   { key: "promo_code", label: "Промокод" },
 ];
@@ -45,7 +44,6 @@ export function OrdersTable({ initial }: { initial: Order[] }) {
   const toast = useToast();
   const [orders, setOrders] = useState<Order[]>(initial);
   const [period, setPeriod] = useState<"today" | "week" | "all">("all");
-  const [status, setStatus] = useState("");
   const [receive, setReceive] = useState("");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
@@ -62,7 +60,6 @@ export function OrdersTable({ initial }: { initial: Order[] }) {
       const t = new Date(o.created_at).getTime();
       if (period === "today" && t < startToday) return false;
       if (period === "week" && t < startWeek) return false;
-      if (status && o.status !== status) return false;
       if (receive && o.receive_type !== receive) return false;
       if (needle) {
         const inNumber = String(o.number ?? "").toLowerCase().includes(needle);
@@ -77,30 +74,18 @@ export function OrdersTable({ initial }: { initial: Order[] }) {
       (o) => (sort.key === "total" || sort.key === "number" ? Number(o[sort.key]) || 0 : o[sort.key]),
       sort.dir
     );
-  }, [orders, period, status, receive, q, sort]);
+  }, [orders, period, receive, q, sort]);
 
   function toggleSort(key: SortKey) {
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
   }
 
-  async function changeStatus(o: Order, value: string) {
-    const prev = o.status;
-    setOrders((l) => l.map((x) => (x.id === o.id ? { ...x, status: value } : x)));
-    setOpen((cur) => (cur && cur.id === o.id ? { ...cur, status: value } : cur));
-    const res = await updateOrderStatus(o.id, value);
-    if (res.ok) toast("Статус сохранён");
-    else {
-      setOrders((l) => l.map((x) => (x.id === o.id ? { ...x, status: prev } : x)));
-      toast("Не удалось сохранить: " + res.error, "error");
-    }
-  }
-
   function exportCsv() {
     downloadCsv("orders.csv", [
-      ["Номер", "Дата", "Клиент", "Телефон", "Сумма", "Скидка", "Статус", "Получение", "Адрес", "Промокод", "Номер в iiko", "Комментарий"],
+      ["Номер", "Дата", "Клиент", "Телефон", "Сумма", "Скидка", "Получение", "Адрес", "Промокод", "Номер в iiko", "Комментарий"],
       ...rows.map((o) => [
         o.number, dateTime(o.created_at), o.customer_name, o.phone, o.total, o.discount,
-        statusLabel(o.status), receiveLabel(o.receive_type), addressText(o.address), o.promo_code, o.iiko_order_id, o.comment,
+        receiveLabel(o.receive_type), addressText(o.address), o.promo_code, o.iiko_order_id, o.comment,
       ]),
     ]);
   }
@@ -122,12 +107,6 @@ export function OrdersTable({ initial }: { initial: Order[] }) {
           {tab("week", "Неделя")}
           {tab("all", "Все")}
         </div>
-        <select className="input !w-44" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">Все статусы</option>
-          {ORDER_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
         <select className="input !w-44" value={receive} onChange={(e) => setReceive(e.target.value)}>
           <option value="">Любой способ</option>
           <option value="delivery">Доставка</option>
@@ -160,18 +139,6 @@ export function OrdersTable({ initial }: { initial: Order[] }) {
                 <td className="td">{o.customer_name || "—"}</td>
                 <td className="td whitespace-nowrap">{o.phone || "—"}</td>
                 <td className="td whitespace-nowrap font-medium">{money(o.total)}</td>
-                <td className="td" onClick={(e) => e.stopPropagation()}>
-                  <select
-                    value={o.status ?? ""}
-                    onChange={(e) => changeStatus(o, e.target.value)}
-                    className={`rounded border-0 px-2 py-1 text-xs font-medium ${statusColor(o.status)}`}
-                  >
-                    {!ORDER_STATUSES.some((s) => s.value === o.status) && <option value={o.status ?? ""}>{o.status || "—"}</option>}
-                    {ORDER_STATUSES.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                </td>
                 <td className="td">{receiveLabel(o.receive_type)}</td>
                 <td className="td">{o.promo_code || "—"}</td>
                 <td className="td">
@@ -192,12 +159,12 @@ export function OrdersTable({ initial }: { initial: Order[] }) {
         </table>
       </div>
 
-      {open && <OrderModal order={open} onClose={() => setOpen(null)} onStatus={(v) => changeStatus(open, v)} />}
+      {open && <OrderModal order={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }
 
-function OrderModal({ order, onClose, onStatus }: { order: Order; onClose: () => void; onStatus: (v: string) => void }) {
+function OrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
   const [items, setItems] = useState<any[] | null>(null);
   const [err, setErr] = useState("");
 
@@ -227,17 +194,11 @@ function OrderModal({ order, onClose, onStatus }: { order: Order; onClose: () =>
           {order.payment_method ? row("Оплата", PAY[String(order.payment_method)] ?? String(order.payment_method)) : null}
         </div>
         <div>
-          {row(
-            "Статус",
-            <select value={order.status ?? ""} onChange={(e) => onStatus(e.target.value)} className={`rounded px-2 py-1 text-xs font-medium ${statusColor(order.status)}`}>
-              {!ORDER_STATUSES.some((s) => s.value === order.status) && <option value={order.status ?? ""}>{order.status || "—"}</option>}
-              {ORDER_STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          )}
           {row("Промокод", order.promo_code)}
           {promoText(order.promo_info) ? row("Акции", promoText(order.promo_info)) : null}
+          {order.promo_info && typeof order.promo_info === "object" && "iikoItemComment" in order.promo_info
+            ? row("Время у блюд в iiko", (order.promo_info as any).iikoItemComment ? "iiko сохранил комментарий к блюдам (время готовности)" : "iiko не сохранил комментарии к блюдам: время есть только в комментарии к заказу")
+            : null}
           {row("Скидка", order.discount ? money(order.discount) : "")}
           {row("Сумма", <b>{money(order.total)}</b>)}
           {row(
