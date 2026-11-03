@@ -5,7 +5,11 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 // Допущение: значения promo_codes.discount_type в базе.
 // Если у сайта другие — поправьте здесь и в PromoTable.tsx (PROMO_TYPES).
-const PROMO_TYPE_VALUES = ["percent", "fixed", "free_delivery"] as const;
+const PROMO_TYPE_VALUES = ["percent", "fixed", "free_delivery", "gift"] as const;
+
+export type PromoGift = { productId: string; label: string; name: string };
+const cleanGifts = (g: unknown): PromoGift[] =>
+  (Array.isArray(g) ? g : []).slice(0, 100).map((x: any) => ({ productId: String(x?.productId ?? "").trim(), label: String(x?.label ?? "").trim(), name: String(x?.name ?? "").trim().slice(0, 120) })).filter((x) => x.productId && x.label);
 
 export type PromoInput = {
   code: string;
@@ -15,6 +19,7 @@ export type PromoInput = {
   expires_at: string | null; // "YYYY-MM-DD" или null (бессрочно)
   max_uses: number | null; // null — без лимита
   active: boolean;
+  gifts?: PromoGift[]; // подарки на выбор (для типа «Подарок»)
 };
 
 function normalize(input: PromoInput) {
@@ -33,6 +38,9 @@ function validate(input: PromoInput): string | null {
     if (!(input.discount_value > 0 && input.discount_value <= 100)) {
       return "Процент скидки должен быть от 1 до 100";
     }
+  }
+  if (input.discount_type === "gift" && cleanGifts(input.gifts).length === 0) {
+    return "Выберите хотя бы одно блюдо в подарок";
   }
   if (input.discount_type === "fixed" && !(input.discount_value > 0)) {
     return "Сумма скидки должна быть больше нуля";
@@ -53,7 +61,8 @@ function toRow(input: PromoInput) {
   return {
     code: input.code,
     discount_type: input.discount_type,
-    discount_value: input.discount_type === "free_delivery" ? 0 : input.discount_value,
+    discount_value: input.discount_type === "free_delivery" || input.discount_type === "gift" ? 0 : input.discount_value,
+    ...(input.discount_type === "gift" ? { gifts: cleanGifts(input.gifts) } : {}),
     min_order: input.min_order,
     // конец выбранного дня по московскому времени
     expires_at: input.expires_at ? `${input.expires_at}T23:59:59+03:00` : null,
@@ -84,7 +93,7 @@ export async function createPromo(raw: PromoInput) {
   if (error) {
     return {
       ok: false as const,
-      error: error.code === "23505" ? "Промокод с таким кодом уже существует" : error.message,
+      error: error.code === "23505" ? "Промокод с таким кодом уже существует" : error.code === "42703" || /promo_codes_discount_type_check/.test(error.message) ? "Сначала выполните миграцию 015 в Supabase" : error.message,
     };
   }
 
@@ -105,7 +114,7 @@ export async function updatePromo(id: string | number, raw: PromoInput) {
   if (error) {
     return {
       ok: false as const,
-      error: error.code === "23505" ? "Промокод с таким кодом уже существует" : error.message,
+      error: error.code === "23505" ? "Промокод с таким кодом уже существует" : error.code === "42703" || /promo_codes_discount_type_check/.test(error.message) ? "Сначала выполните миграцию 015 в Supabase" : error.message,
     };
   }
 

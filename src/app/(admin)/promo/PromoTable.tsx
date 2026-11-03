@@ -14,7 +14,10 @@ type Promo = {
   max_uses: number | null;
   uses_count: number | null;
   active: boolean;
+  gifts?: Gift[] | null;
 };
+type Gift = { productId: string; label: string; name: string };
+type Prod = { id: string; name: string; variants: string[] };
 
 type SortKey =
   | "code"
@@ -34,6 +37,7 @@ type FormState = {
   expires_at: string;
   max_uses: string;
   active: boolean;
+  gifts: Gift[];
 };
 
 // Допущение: значения совпадают с PROMO_TYPE_VALUES в actions/promo.ts
@@ -41,6 +45,7 @@ const PROMO_TYPES: { value: string; label: string }[] = [
   { value: "percent", label: "Процент" },
   { value: "fixed", label: "Фиксированная сумма" },
   { value: "free_delivery", label: "Бесплатная доставка" },
+  { value: "gift", label: "Подарок (блюдо)" },
 ];
 
 const emptyForm: FormState = {
@@ -51,6 +56,7 @@ const emptyForm: FormState = {
   expires_at: "",
   max_uses: "",
   active: true,
+  gifts: [],
 };
 
 function typeLabel(t: string) {
@@ -65,6 +71,7 @@ function valueLabel(p: Promo) {
   if (p.discount_type === "percent") return `${p.discount_value ?? 0}%`;
   if (p.discount_type === "fixed") return rub(p.discount_value);
   if (p.discount_type === "free_delivery") return "—";
+  if (p.discount_type === "gift") return "Подарок";
   return String(p.discount_value ?? "—");
 }
 
@@ -89,7 +96,40 @@ function isExpired(iso: string | null) {
   return !Number.isNaN(t) && t < Date.now();
 }
 
-export function PromoTable({ initial }: { initial: Promo[] }) {
+// Выбор блюд в подарок: поиск по названию, галочки по размерам / количеству
+function GiftPicker({ gifts, onChange, prods }: { gifts: Gift[]; onChange: (g: Gift[]) => void; prods: Prod[] }) {
+  const [q, setQ] = useState("");
+  const has = (id: string, label: string) => gifts.some((g) => g.productId === id && g.label === label);
+  const toggle = (p: Prod, v: string) => onChange(has(p.id, v) ? gifts.filter((g) => !(g.productId === p.id && g.label === v)) : [...gifts, { productId: p.id, label: v, name: p.name }]);
+  const rows = q.trim() ? prods.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 10).flatMap((p) => p.variants.map((v) => ({ p, v }))) : [];
+  return (
+    <div className="space-y-2 rounded-md border border-slate-200 p-3">
+      <p className="text-sm font-medium text-slate-700">Что можно выбрать в подарок</p>
+      <input className="input w-full" placeholder="Найти блюдо по названию…" value={q} onChange={(e) => setQ(e.target.value)} />
+      {rows.length > 0 && (
+        <div className="max-h-48 overflow-y-auto rounded-md border border-slate-200">
+          {rows.map(({ p, v }) => (
+            <label key={`${p.id}-${v}`} className="flex items-center gap-2 border-b border-slate-100 px-3 py-1.5 text-sm last:border-0">
+              <input type="checkbox" checked={has(p.id, v)} onChange={() => toggle(p, v)} />
+              {p.name} — {v}
+            </label>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {gifts.map((g) => (
+          <span key={`${g.productId}-${g.label}`} className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-800">
+            🎁 {g.name || prods.find((p) => p.id === g.productId)?.name} — {g.label}
+            <button type="button" aria-label="Убрать" onClick={() => onChange(gifts.filter((x) => !(x.productId === g.productId && x.label === g.label)))}>×</button>
+          </span>
+        ))}
+        {!gifts.length && <span className="text-sm text-slate-400">Блюда не выбраны</span>}
+      </div>
+    </div>
+  );
+}
+
+export function PromoTable({ initial, products = [] }: { initial: Promo[]; products?: Prod[] }) {
   // Допущение: useToast() возвращает функцию toast(msg, "error"?)
   const toast = useToast();
   const [items, setItems] = useState<Promo[]>(initial);
@@ -172,6 +212,7 @@ export function PromoTable({ initial }: { initial: Promo[] }) {
       expires_at: mskDate(p.expires_at),
       max_uses: p.max_uses === null ? "" : String(p.max_uses),
       active: p.active,
+      gifts: Array.isArray(p.gifts) ? p.gifts : [],
     });
     setFormError(null);
     setModal({ mode: "edit", item: p });
@@ -179,15 +220,16 @@ export function PromoTable({ initial }: { initial: Promo[] }) {
 
   function submitForm() {
     if (!modal) return;
-    const isFree = form.discount_type === "free_delivery";
+    const noValue = form.discount_type === "free_delivery" || form.discount_type === "gift";
     const payload = {
       code: form.code,
       discount_type: form.discount_type,
-      discount_value: isFree ? 0 : Number(form.discount_value),
+      discount_value: noValue ? 0 : Number(form.discount_value),
       min_order: form.min_order.trim() === "" ? 0 : Number(form.min_order),
       expires_at: form.expires_at === "" ? null : form.expires_at,
       max_uses: form.max_uses.trim() === "" ? null : Number(form.max_uses),
       active: form.active,
+      ...(form.discount_type === "gift" ? { gifts: form.gifts } : {}),
     };
 
     startTransition(async () => {
@@ -239,7 +281,8 @@ export function PromoTable({ initial }: { initial: Promo[] }) {
     });
   }
 
-  const isFree = form.discount_type === "free_delivery";
+  const isFree = form.discount_type === "free_delivery" || form.discount_type === "gift";
+  const isGift = form.discount_type === "gift";
 
   const head = (key: SortKey, label: string) => (
     <th className="th cursor-pointer select-none" onClick={() => toggleSort(key)}>
@@ -426,6 +469,7 @@ export function PromoTable({ initial }: { initial: Promo[] }) {
                   />
                 </label>
               </div>
+              {isGift && <GiftPicker gifts={form.gifts} onChange={(gifts) => setForm((f) => ({ ...f, gifts }))} prods={products} />}
               <div className="grid grid-cols-2 gap-4">
                 <label className="block text-sm">
                   <span className="label">Мин. сумма заказа, ₽</span>

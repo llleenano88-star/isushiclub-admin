@@ -6,10 +6,10 @@ export const dynamic = "force-dynamic";
 
 export default async function PromoPage() {
   await requireAdmin();
-  const { data, error } = await createServiceClient()
-    .from("promo_codes")
-    .select("*")
-    .order("code", { ascending: true });
+  const db = createServiceClient();
+  const { data, error } = await db.from("promo_codes").select("*").order("code", { ascending: true });
+  const { data: prods } = await db.from("products").select("id, name, variants").order("name", { ascending: true });
+  const products = ((prods ?? []) as any[]).map((p) => ({ id: String(p.id), name: String(p.name), variants: (Array.isArray(p.variants) ? p.variants : []).map((v: any) => String(v?.label ?? "")).filter(Boolean) }));
 
   return (
     <div>
@@ -19,7 +19,7 @@ export default async function PromoPage() {
           Не удалось загрузить промокоды: {error.message}
         </div>
       ) : (
-        <PromoTable initial={(data ?? []) as any[]} />
+        <PromoTable initial={(data ?? []) as any[]} products={products} />
       )}
     </div>
   );
