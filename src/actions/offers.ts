@@ -5,14 +5,14 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { uploadImage } from "@/lib/upload";
 
 const KINDS = ["gift_from_amount", "cheapest_free", "combo_gift", "percent", "fixed", "bundle_price"] as const;
-const strs = (v: unknown, max = 200) => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, max) : []);
+const strs = (v: unknown, max = 2000) => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, max) : []);
 const nonNeg = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
 
 function cleanFilter(f: any) {
   return { categoryIds: strs(f?.categoryIds), productIds: strs(f?.productIds), labelContains: String(f?.labelContains ?? "").trim().slice(0, 40) };
 }
 function cleanGifts(g: any) {
-  return (Array.isArray(g) ? g : []).slice(0, 200).map((x: any) => ({ productId: String(x?.productId ?? "").trim(), label: String(x?.label ?? "").trim(), name: String(x?.name ?? "").trim().slice(0, 120) })).filter((x) => x.productId && x.label);
+  return (Array.isArray(g) ? g : []).slice(0, 1000).map((x: any) => ({ productId: String(x?.productId ?? "").trim(), label: String(x?.label ?? "").trim(), name: String(x?.name ?? "").trim().slice(0, 120) })).filter((x) => x.productId && x.label);
 }
 
 // Приводит настройки акции к безопасному виду и проверяет обязательные поля

@@ -20,6 +20,7 @@ export type PromoInput = {
   max_uses: number | null; // null — без лимита
   active: boolean;
   gifts?: PromoGift[]; // подарки на выбор (для типа «Подарок»)
+  one_per_email?: boolean; // один раз на одну почту
 };
 
 function normalize(input: PromoInput) {
@@ -68,6 +69,7 @@ function toRow(input: PromoInput) {
     expires_at: input.expires_at ? `${input.expires_at}T23:59:59+03:00` : null,
     max_uses: input.max_uses,
     active: input.active,
+    one_per_email: !!input.one_per_email,
   };
 }
 
@@ -87,13 +89,18 @@ export async function createPromo(raw: PromoInput) {
     return { ok: false as const, error: "Промокод с таким кодом уже существует" };
   }
 
-  const { error } = await createServiceClient()
+  let { error } = await createServiceClient()
     .from("promo_codes")
     .insert({ ...toRow(input), uses_count: 0 });
+  if (error?.code === "42703" && !input.one_per_email) {
+    // миграция 016 ещё не выполнена: сохраняем без нового поля, остальное работает как раньше
+    const { one_per_email: _o, ...rest } = toRow(input);
+    ({ error } = await createServiceClient().from("promo_codes").insert({ ...rest, uses_count: 0 }));
+  }
   if (error) {
     return {
       ok: false as const,
-      error: error.code === "23505" ? "Промокод с таким кодом уже существует" : error.code === "42703" || /promo_codes_discount_type_check/.test(error.message) ? "Сначала выполните миграцию 015 в Supabase" : error.message,
+      error: error.code === "23505" ? "Промокод с таким кодом уже существует" : error.code === "42703" || /promo_codes_discount_type_check/.test(error.message) ? "Сначала выполните миграции 015 и 016 в Supabase" : error.message,
     };
   }
 
@@ -110,11 +117,15 @@ export async function updatePromo(id: string | number, raw: PromoInput) {
     return { ok: false as const, error: "Промокод с таким кодом уже существует" };
   }
 
-  const { error } = await createServiceClient().from("promo_codes").update(toRow(input)).eq("id", id);
+  let { error } = await createServiceClient().from("promo_codes").update(toRow(input)).eq("id", id);
+  if (error?.code === "42703" && !input.one_per_email) {
+    const { one_per_email: _o, ...rest } = toRow(input);
+    ({ error } = await createServiceClient().from("promo_codes").update(rest).eq("id", id));
+  }
   if (error) {
     return {
       ok: false as const,
-      error: error.code === "23505" ? "Промокод с таким кодом уже существует" : error.code === "42703" || /promo_codes_discount_type_check/.test(error.message) ? "Сначала выполните миграцию 015 в Supabase" : error.message,
+      error: error.code === "23505" ? "Промокод с таким кодом уже существует" : error.code === "42703" || /promo_codes_discount_type_check/.test(error.message) ? "Сначала выполните миграции 015 и 016 в Supabase" : error.message,
     };
   }
 

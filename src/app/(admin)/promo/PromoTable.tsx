@@ -15,6 +15,7 @@ type Promo = {
   uses_count: number | null;
   active: boolean;
   gifts?: Gift[] | null;
+  one_per_email?: boolean | null;
 };
 type Gift = { productId: string; label: string; name: string };
 type Prod = { id: string; name: string; variants: string[] };
@@ -38,6 +39,7 @@ type FormState = {
   max_uses: string;
   active: boolean;
   gifts: Gift[];
+  one_per_email: boolean;
 };
 
 // Допущение: значения совпадают с PROMO_TYPE_VALUES в actions/promo.ts
@@ -57,6 +59,7 @@ const emptyForm: FormState = {
   max_uses: "",
   active: true,
   gifts: [],
+  one_per_email: false,
 };
 
 function typeLabel(t: string) {
@@ -213,6 +216,7 @@ export function PromoTable({ initial, products = [] }: { initial: Promo[]; produ
       max_uses: p.max_uses === null ? "" : String(p.max_uses),
       active: p.active,
       gifts: Array.isArray(p.gifts) ? p.gifts : [],
+      one_per_email: !!p.one_per_email,
     });
     setFormError(null);
     setModal({ mode: "edit", item: p });
@@ -229,6 +233,7 @@ export function PromoTable({ initial, products = [] }: { initial: Promo[]; produ
       expires_at: form.expires_at === "" ? null : form.expires_at,
       max_uses: form.max_uses.trim() === "" ? null : Number(form.max_uses),
       active: form.active,
+      one_per_email: form.one_per_email,
       ...(form.discount_type === "gift" ? { gifts: form.gifts } : {}),
     };
 
@@ -515,6 +520,10 @@ export function PromoTable({ initial, products = [] }: { initial: Promo[]; produ
                 Активен
               </label>
             </div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={form.one_per_email} onChange={(e) => setForm((f) => ({ ...f, one_per_email: e.target.checked }))} className="h-4 w-4 rounded border-slate-300" />
+              Один раз на одну почту (клиент с этой почты сможет использовать промокод только один раз)
+            </label>
             <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
               <button type="button" onClick={() => setModal(null)} className="btn btn-secondary">
                 Отмена
